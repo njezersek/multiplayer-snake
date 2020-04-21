@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/socket.io/socket.io.js"></script>
+    <title>Snake</title>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const socket = io();
+
+        const c = document.getElementById("canvas");
+        const ctx = c.getContext("2d");
+
+        console.log(socket);
+
+        socket.on("update", ({snakes, food, width, height})=>{
+
+            const size = 20;
+            c.height = height*size;
+            c.width = width*size;
+
+            ctx.fillStyle = "#eee";
+            for(let i=0; i<width; i++){
+                for(let j=0; j<width; j++){
+                    ctx.fillRect(i*size+1, j*size+1, size-2, size-2);
+                }
+            }
+
+            ctx.fillStyle = "orange";
+            for(let f of food){
+                ctx.fillRect(f.x*size+1, f.y*size+1, size-2, size-2);
+            }
+
+            ctx.fillStyle = "green";
+            for(let snake of snakes){
+                for(let s of snake.body){
+                    ctx.fillRect(s.x*size+1, s.y*size+1, size-2, size-2);
+                }
+            }
+        });
+
+        window.onkeydown = (e) => {
+            let direction = {x: 0, y: 0};
+            if(e.key == "ArrowLeft"){
+                direction.x = -1;
+            }
+            if(e.key == "ArrowRight"){
+                direction.x = 1;
+            }
+            if(e.key == "ArrowDown"){
+                direction.y = 1;
+            }
+            if(e.key == "ArrowUp"){
+                direction.y = -1;
+            }
+
+            socket.emit("direction", direction);
+        }
+    </script>
+</body>
+</html>
