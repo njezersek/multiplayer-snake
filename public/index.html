@@ -15,11 +15,84 @@
         const c = document.getElementById("canvas");
         const ctx = c.getContext("2d");
 
-        console.log(socket);
+        const width = 40;
+        const height = 40;
+        const size = 20;
 
-        socket.on("update", ({snakes, food, width, height})=>{
+        let snake = [randomLocation()];
+        let direction = {x: 0, y: 0};
+        let snakeDieing = false;
 
-            const size = 20;
+        let snakes = [];
+        let food = [];
+
+        const interval = setInterval(tick, 100);
+
+        function tick(){
+            if(!snakeDieing){
+                // move snake
+                let head = snake[0];
+                let newHead = {
+                    x: (head.x + direction.x + width) % width,
+                    y: (head.y + direction.y + height) % height
+                }
+
+                // food collision
+                let eaten = false;
+                for(let i=0; i<food.length; i++){
+                    let f = food[i];
+                    if(newHead.x == f.x && newHead.y == f.y){
+                        food.splice(i,1);
+                        eaten = true;
+                        i--;
+                    }
+                }
+
+                // self collision
+                for(let s of snake){
+                    if(newHead.x == s.x && newHead.y == s.y){
+                        snakeDieing = true;
+                    }
+                }
+
+                // other snakes collision
+                for(let snake of snakes){
+                    for(let s of snake.body){
+                        if(newHead.x == s.x && newHead.y == s.y){
+                            snakeDieing = true;
+                        }
+                    }
+                }
+
+                snake.unshift(newHead);
+                if(!eaten)snake.pop();
+            }
+            else{
+                if(snake.length > 1){
+                    snake.pop();
+                }
+                else{
+                    snakeDieing = false;
+                    direction = {x: 0, y: 0};
+                }
+            }
+
+            updateServer();
+
+            render();
+        }
+
+        function updateServer(){
+            socket.emit("snake", {snake, direction, snakeDieing}, (data) => { // handle response from server
+                console.log(data);
+                snakes = data.snakes;
+                food = data.food;
+
+                render();
+            });
+        }
+
+        function render(){
             c.height = height*size;
             c.width = width*size;
 
@@ -35,30 +108,45 @@
                 ctx.fillRect(f.x*size+1, f.y*size+1, size-2, size-2);
             }
 
+            // me
+            ctx.fillStyle = "blue";
+            for(let s of snake){
+                ctx.fillRect(s.x*size+1, s.y*size+1, size-2, size-2);
+            }
+
+            // others
             ctx.fillStyle = "green";
             for(let snake of snakes){
+                if(snake.id === socket.id)continue;
                 for(let s of snake.body){
                     ctx.fillRect(s.x*size+1, s.y*size+1, size-2, size-2);
                 }
             }
-        });
+        }
+
+        function randomLocation(){
+            return {x: Math.floor(Math.random()*width), y: Math.floor(Math.random()*height)};
+        }
+
 
         window.onkeydown = (e) => {
-            let direction = {x: 0, y: 0};
+            let dir = {x: 0, y: 0};
             if(e.key == "ArrowLeft"){
-                direction.x = -1;
+                dir.x = -1;
             }
             if(e.key == "ArrowRight"){
-                direction.x = 1;
+                dir.x = 1;
             }
             if(e.key == "ArrowDown"){
-                direction.y = 1;
+                dir.y = 1;
             }
             if(e.key == "ArrowUp"){
-                direction.y = -1;
+                dir.y = -1;
             }
 
-            socket.emit("direction", direction);
+            if(direction.x + dir.x == 0 && direction.y + dir.y == 0 )return;
+
+            direction = dir;
         }
     </script>
 </body>

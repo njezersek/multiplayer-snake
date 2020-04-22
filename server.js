@@ -22,71 +22,23 @@ io.on('connection', (socket) => {
     socket.snakeDirection = {x: 0, y: 0};
     socket.snakeDieing = false;
 
-    socket.on("direction", (dir) => {
-        let oldDir = socket.snakeDirection;
-        if(oldDir.x + dir.x == 0 && oldDir.y + dir.y == 0 )return; // prevent snake from turning into itself
+    socket.on("snake", ({snake, direction, snakeDieing}, callback) => {
+        socket.snakeBody = snake;
+        socket.snakeDirection = direction;
+        socket.snakeDieing = snakeDieing;
 
-        socket.snakeDirection = dir;
-    });
-    
-    socket.on("disconnect", () => {
-        console.log("a user disconnected");
-    });
-});
-
-
-
-function tick(){
-    let snakes = [];
-    var sockets = io.sockets.sockets;
-    for(var socketId in sockets){
-        var socket = sockets[socketId]; //loop through and do whatever with each connected socket
-        if(!socket.snakeDieing){
-            // move snake
-            let head = socket.snakeBody[0];
-            let newHead = {
-                x: (head.x + socket.snakeDirection.x + width) % width,
-                y: (head.y + socket.snakeDirection.y + height) % height
-            }
-
-            // food collision
-            let eaten = false;
-            for(let i=0; i<food.length; i++){
-                let f = food[i];
-                if(newHead.x == f.x && newHead.y == f.y){
-                    food.splice(i,1);
-                    eaten = true;
-                    i--;
-                }
-            }
-
-            // self collision
-            for(let s of socket.snakeBody){
-                if(newHead.x == s.x && newHead.y == s.y){
-                    socket.snakeDieing = true;
-                }
-            }
-
-            // other snakes collision
-            for(var otherId in sockets){
-                var otherSocker = sockets[otherId];
-                for(let s of otherSocker.snakeBody){
-                    if(newHead.x == s.x && newHead.y == s.y){
-                        socket.snakeDieing = true;
-                    }
-                }
-            }
-
-            socket.snakeBody.unshift(newHead);
-            if(!eaten)socket.snakeBody.pop();
+        let snakes = [];
+        var sockets = io.sockets.sockets;
+        for(var socketId in sockets){
+            let otherSocket = sockets[socketId];
+            snakes.push({body: otherSocket.snakeBody, id: otherSocket.id});
         }
-        else{
-            if(socket.snakeBody.length > 1){
-                socket.snakeBody.pop();
-            }
-            else{
-                socket.snakeDieing = false;
-                socket.snakeDirection = {x: 0, y: 0};
+
+        // remove eaten food
+        for(let i=0; i<food.length; i++){
+            let fruit = food[i];
+            if(snake[0].x == fruit.x && snake[0].y == fruit.y){
+                food.splice(i--,1);
             }
         }
 
@@ -95,14 +47,13 @@ function tick(){
             food.push({x: Math.floor(Math.random()*width), y: Math.floor(Math.random()*height)});
         }
 
-
-
-        snakes.push({body: socket.snakeBody, id: socket.id});
-    }
-    io.emit("update", {snakes, food, width, height});
-}
-
-setInterval(tick, 100);
+        callback({snakes, food, id: socket.id});
+    });
+    
+    socket.on("disconnect", () => {
+        console.log("a user disconnected");
+    });
+});
 
 
 
