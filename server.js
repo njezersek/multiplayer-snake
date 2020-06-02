@@ -12,7 +12,7 @@ const io = socketIO(server);
 const width = 40;
 const height = 40;
 
-const minFoodCount = 3;
+const minFoodCount = 1;
 const food = [];
 
 io.on('connection', (socket) => {
